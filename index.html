@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tank Battle 1990</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>TANK BATTLE 1990</h1>
+        <p>Defend your battlefield!</p>
+    </header>
+
+    <main>
+        <section class="hud">
+            <div>Score: <span id="score">0</span></div>
+            <div>Lives: <span id="lives">3</span></div>
+            <div>Enemies: <span id="enemy-count">3</span></div>
+        </section>
+
+        <section id="boss-panel" class="boss-panel" hidden>
+            <div class="boss-heading">
+                <span>BOSS HEALTH</span>
+                <span id="boss-health-text">20 / 20</span>
+            </div>
+            <div class="health-track">
+                <div id="boss-health-fill"></div>
+            </div>
+        </section>
+
+        <div class="game-container">
+            <canvas id="gameCanvas" width="600" height="400">
+                Your browser does not support HTML Canvas.
+            </canvas>
+
+            <div id="screen" class="screen">
+                <h2 id="screen-title">TANK BATTLE 1990</h2>
+                <p id="screen-message">
+                    Defeat enemies, reach 1000 points and fight the Boss!
+                </p>
+
+                <div class="instructions">
+                    <p><b>Move:</b> Arrow Keys or W, A, S, D</p>
+                    <p><b>Shoot:</b> Hold SPACEBAR</p>
+                    <p><b>Goal:</b> Defeat the Boss to win.</p>
+                    <p>Walls cannot be destroyed.</p>
+                </div>
+
+                <button id="screen-button" type="button">
+                    START GAME
+                </button>
+            </div>
+        </div>
+
+        <section class="mobile-controls">
+            <button type="button" data-key="arrowup">▲</button>
+
+            <div class="direction-row">
+                <button type="button" data-key="arrowleft">◀</button>
+                <button type="button" data-key="arrowdown">▼</button>
+                <button type="button" data-key="arrowright">▶</button>
+            </div>
+
+            <button type="button" id="fire-button">FIRE</button>
+        </section>
+
+        <p class="hint">
+            Survive, earn points and defeat the Final Boss!
+        </p>
+    </main>
+
+    <script src="game.js"></script>
+</body>
+</html>
