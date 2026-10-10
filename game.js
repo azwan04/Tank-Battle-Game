@@ -24,9 +24,13 @@ const bossHealthText = document.getElementById("boss-health-text");
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const TANK_SIZE = 28;
-const PLAYER_LIVES = 3;
+
+const STARTING_LIVES = 3;
+const MAX_LIVES = 5;
 const BOSS_SCORE = 1000;
 const BOSS_MAX_HEALTH = 20;
+const POWERUP_SIZE = 22;
+const POWERUP_INTERVAL = 9000;
 
 const directions = {
     up: { x: 0, y: -1 },
@@ -37,21 +41,23 @@ const directions = {
 
 let state = "start";
 let score = 0;
-let lives = PLAYER_LIVES;
+let lives = STARTING_LIVES;
 
 let player = null;
 let enemies = [];
 let bullets = [];
 let walls = [];
 let boss = null;
+let powerup = null;
 
 let keys = {};
 let lastTime = 0;
 let enemySpawnTimer = 0;
+let powerupTimer = 0;
 let bossWarningShown = false;
 
 // ============================================
-// CREATE THE BATTLEFIELD
+// BATTLEFIELD
 // ============================================
 
 function createWorld() {
@@ -93,13 +99,15 @@ function createPlayer() {
 
 function resetGame() {
     score = 0;
-    lives = PLAYER_LIVES;
+    lives = STARTING_LIVES;
 
     enemies = [];
     bullets = [];
     boss = null;
+    powerup = null;
 
     enemySpawnTimer = 0;
+    powerupTimer = 0;
     bossWarningShown = false;
     keys = {};
 
@@ -160,6 +168,7 @@ function startBossFight() {
 
     enemies = [];
     bullets = [];
+    powerup = null;
 
     state = "playing";
     screen.classList.add("hidden");
@@ -176,6 +185,7 @@ function checkBossThreshold() {
         bossWarningShown = true;
         enemies = [];
         bullets = [];
+        powerup = null;
         state = "boss-warning";
 
         showScreen(
@@ -343,7 +353,6 @@ function movePlayer(delta) {
 
     const distance = player.speed * delta / 16.67;
 
-    // Separate horizontal and vertical checks allow smoother movement.
     if (dx !== 0 && canMove(player, player.x + dx * distance, player.y)) {
         player.x += dx * distance;
     }
@@ -352,7 +361,6 @@ function movePlayer(delta) {
         player.y += dy * distance;
     }
 
-    // Spacebar and mobile FIRE button both set keys.space to true.
     if (keys.space) {
         shoot(player, "player");
     }
@@ -410,10 +418,108 @@ function moveBullets(delta) {
             return false;
         }
 
-        // Bullets disappear when hitting walls.
-        // Walls cannot be destroyed.
         return !walls.some(wall => overlaps(bullet, wall));
     });
+}
+
+// ============================================
+// RANDOM EXTRA-LIFE POWER-UP
+// ============================================
+
+function spawnPowerup() {
+    if (powerup || lives >= MAX_LIVES || boss) {
+        return;
+    }
+
+    for (let attempt = 0; attempt < 80; attempt++) {
+        const x = 20 + Math.random() * (WIDTH - POWERUP_SIZE - 40);
+        const y = 20 + Math.random() * (HEIGHT - POWERUP_SIZE - 40);
+
+        const candidate = {
+            x: x,
+            y: y,
+            size: POWERUP_SIZE
+        };
+
+        const blockedByWall = walls.some(wall =>
+            overlaps(candidate, wall)
+        );
+
+        const blockedByPlayer = player && overlaps(candidate, player);
+        const blockedByEnemy = enemies.some(enemy =>
+            overlaps(candidate, enemy)
+        );
+
+        if (!blockedByWall && !blockedByPlayer && !blockedByEnemy) {
+            powerup = candidate;
+            return;
+        }
+    }
+}
+
+function updatePowerup(delta) {
+    if (lives >= MAX_LIVES || boss) {
+        powerup = null;
+        powerupTimer = 0;
+        return;
+    }
+
+    if (!powerup) {
+        powerupTimer += delta;
+
+        if (powerupTimer >= POWERUP_INTERVAL) {
+            powerupTimer = 0;
+            spawnPowerup();
+        }
+    }
+
+    if (powerup && overlaps(player, powerup)) {
+        if (lives < MAX_LIVES) {
+            lives++;
+            powerup = null;
+            powerupTimer = 0;
+            updateHUD();
+        }
+    }
+}
+
+function drawPowerup() {
+    if (!powerup) {
+        return;
+    }
+
+    const cx = powerup.x + powerup.size / 2;
+    const cy = powerup.y + powerup.size / 2;
+
+    ctx.save();
+    ctx.fillStyle = "#ff3b5c";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+
+    // Draw a heart shape.
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + 8);
+    ctx.bezierCurveTo(
+        cx - 14, cy - 1,
+        cx - 10, cy - 11,
+        cx - 3, cy - 7
+    );
+    ctx.bezierCurveTo(
+        cx, cy - 5,
+        cx, cy - 3,
+        cx, cy - 3
+    );
+    ctx.bezierCurveTo(
+        cx + 5, cy - 13,
+        cx + 14, cy - 5,
+        cx + 10, cy + 1
+    );
+    ctx.lineTo(cx, cy + 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
 }
 
 // ============================================
@@ -447,16 +553,18 @@ function moveBoss(delta) {
 }
 
 // ============================================
-// DAMAGE AND SCORE
+// DAMAGE AND COLLISIONS
 // ============================================
 
 function loseLife() {
-    if (state !== "playing") {
+    if (state !== "playing" || player.invulnerable > 0) {
         return;
     }
 
     lives--;
 
+    // The player tank does NOT respawn.
+    // It stays at the position where it was hit.
     if (lives <= 0) {
         lives = 0;
         updateHUD();
@@ -464,13 +572,13 @@ function loseLife() {
         return;
     }
 
-    player.x = 286;
-    player.y = 350;
-    player.direction = "up";
+    // Brief protection to prevent repeated instant damage.
     player.invulnerable = 1500;
 
     // Remove enemy bullets after the player is hit.
     bullets = bullets.filter(bullet => bullet.owner === "player");
+
+    updateHUD();
 }
 
 function checkCollisions() {
@@ -517,7 +625,9 @@ function checkCollisions() {
     const defeated = enemies.filter(enemy => enemy.hp <= 0);
 
     if (defeated.length > 0) {
-        score += defeated.length * 50;
+        // Each defeated enemy gives 100 points.
+        score += defeated.length * 100;
+
         enemies = enemies.filter(enemy => enemy.hp > 0);
 
         checkBossThreshold();
@@ -541,6 +651,15 @@ function checkCollisions() {
             break;
         }
     }
+
+    if (powerup && overlaps(player, powerup)) {
+        if (lives < MAX_LIVES) {
+            lives++;
+            powerup = null;
+            powerupTimer = 0;
+            updateHUD();
+        }
+    }
 }
 
 // ============================================
@@ -551,7 +670,7 @@ function drawWorld() {
     ctx.fillStyle = "#354c36";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // Ground pattern only. No grass or camouflage.
+    // Ground pattern. No grass or camouflage.
     ctx.strokeStyle = "rgba(255,255,255,0.04)";
     ctx.lineWidth = 1;
 
@@ -599,13 +718,12 @@ function drawWall(wall) {
 }
 
 // ============================================
-// IMPROVED TANK GRAPHICS
+// TANK GRAPHICS
 // ============================================
 
 function drawTank(tank) {
     const size = tank.size;
 
-    // Blink while the player has temporary protection.
     if (
         tank === player &&
         player.invulnerable > 0 &&
@@ -630,7 +748,7 @@ function drawTank(tank) {
 
     ctx.rotate(angles[tank.direction]);
 
-    // Dark tank tracks.
+    // Tank tracks.
     ctx.fillStyle = "#151b16";
     ctx.fillRect(
         -size * 0.49,
@@ -639,7 +757,6 @@ function drawTank(tank) {
         size * 0.92
     );
 
-    // Track segments.
     ctx.fillStyle = "#69766a";
 
     for (let i = 0; i < 4; i++) {
@@ -660,7 +777,7 @@ function drawTank(tank) {
         );
     }
 
-    // Main armour.
+    // Armour.
     ctx.fillStyle = tank.color;
     ctx.fillRect(
         -size * 0.32,
@@ -669,7 +786,6 @@ function drawTank(tank) {
         size * 0.78
     );
 
-    // Armour shadow.
     ctx.fillStyle = "rgba(0,0,0,0.22)";
     ctx.fillRect(
         -size * 0.27,
@@ -678,7 +794,6 @@ function drawTank(tank) {
         size * 0.16
     );
 
-    // Armour highlight.
     ctx.fillStyle = "rgba(255,255,255,0.20)";
     ctx.fillRect(
         -size * 0.25,
@@ -696,7 +811,7 @@ function drawTank(tank) {
         size * 0.40
     );
 
-    // Cannon barrel.
+    // Cannon.
     ctx.fillStyle = "#202720";
     ctx.fillRect(
         -size * 0.095,
@@ -705,7 +820,6 @@ function drawTank(tank) {
         size * 0.47
     );
 
-    // Cannon highlight.
     ctx.fillStyle = "#a6b2a1";
     ctx.fillRect(
         -size * 0.045,
@@ -724,13 +838,12 @@ function drawTank(tank) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Turret hatch.
     ctx.fillStyle = "#c0cbb7";
     ctx.beginPath();
     ctx.arc(0, 0, size * 0.075, 0, Math.PI * 2);
     ctx.fill();
 
-    // Extra armour for the boss.
+    // Boss armour.
     if (tank === boss) {
         ctx.strokeStyle = "#f4c8ff";
         ctx.lineWidth = 2;
@@ -775,7 +888,6 @@ function drawBullets() {
             bullet.h
         );
 
-        // Small bright centre for player bullets.
         if (bullet.owner === "player") {
             ctx.fillStyle = "#ffffff";
             ctx.fillRect(
@@ -789,7 +901,7 @@ function drawBullets() {
 }
 
 // ============================================
-// UPDATE SCORE AND BOSS HEALTH
+// HUD
 // ============================================
 
 function updateHUD() {
@@ -823,6 +935,7 @@ function gameLoop(time = 0) {
         moveEnemies(delta);
         moveBoss(delta);
         moveBullets(delta);
+        updatePowerup(delta);
         checkCollisions();
 
         if (state === "playing" && !boss) {
@@ -855,7 +968,9 @@ function gameLoop(time = 0) {
     }
 
     drawWorld();
+    drawPowerup();
     drawBullets();
+
     enemies.forEach(drawTank);
 
     if (player) {
@@ -889,7 +1004,7 @@ document.addEventListener("keydown", function (event) {
 
     if (
         ["arrowup", "arrowdown", "arrowleft", "arrowright", " "]
-        .includes(key)
+            .includes(key)
     ) {
         event.preventDefault();
     }
@@ -946,22 +1061,24 @@ document.querySelectorAll("[data-key]").forEach(function (button) {
 
 const fireButton = document.getElementById("fire-button");
 
-fireButton.addEventListener("pointerdown", function (event) {
-    event.preventDefault();
-    keys.space = true;
+if (fireButton) {
+    fireButton.addEventListener("pointerdown", function (event) {
+        event.preventDefault();
+        keys.space = true;
 
-    if (fireButton.setPointerCapture) {
-        fireButton.setPointerCapture(event.pointerId);
+        if (fireButton.setPointerCapture) {
+            fireButton.setPointerCapture(event.pointerId);
+        }
+    });
+
+    function stopFiring() {
+        keys.space = false;
     }
-});
 
-function stopFiring() {
-    keys.space = false;
+    fireButton.addEventListener("pointerup", stopFiring);
+    fireButton.addEventListener("pointercancel", stopFiring);
+    fireButton.addEventListener("lostpointercapture", stopFiring);
 }
-
-fireButton.addEventListener("pointerup", stopFiring);
-fireButton.addEventListener("pointercancel", stopFiring);
-fireButton.addEventListener("lostpointercapture", stopFiring);
 
 // ============================================
 // INITIALIZE
