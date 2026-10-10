@@ -2,7 +2,7 @@
 "use strict";
 
 // ============================================
-// TANK BATTLE 1990
+// TANK BATTLE 1990 - ENDLESS BATTLE
 // ============================================
 
 const canvas = document.getElementById("gameCanvas");
@@ -17,20 +17,15 @@ const screenTitle = document.getElementById("screen-title");
 const screenMessage = document.getElementById("screen-message");
 const screenButton = document.getElementById("screen-button");
 
-const bossPanel = document.getElementById("boss-panel");
-const bossHealthFill = document.getElementById("boss-health-fill");
-const bossHealthText = document.getElementById("boss-health-text");
-
 const WIDTH = canvas.width;
 const HEIGHT = canvas.height;
 const TANK_SIZE = 28;
 
 const STARTING_LIVES = 3;
 const MAX_LIVES = 5;
-const BOSS_SCORE = 1000;
-const BOSS_MAX_HEALTH = 20;
-const POWERUP_SIZE = 22;
-const POWERUP_INTERVAL = 9000;
+const MAX_ALLIES = 3;
+const MAX_ENEMIES = 5;
+const POWERUP_INTERVAL = 8000;
 
 const directions = {
     up: { x: 0, y: -1 },
@@ -45,56 +40,65 @@ let lives = STARTING_LIVES;
 
 let player = null;
 let enemies = [];
+let allies = [];
 let bullets = [];
 let walls = [];
-let boss = null;
-let powerup = null;
+let powerups = [];
 
 let keys = {};
 let lastTime = 0;
 let enemySpawnTimer = 0;
 let powerupTimer = 0;
-let bossWarningShown = false;
+let nextPowerupType = "life";
 
 // ============================================
-// BATTLEFIELD
+// WORLD - ORIGINAL WALL DESIGN
 // ============================================
 
 function createWorld() {
     walls = [
-        { x: 90, y: 65, w: 40, h: 40 },
-        { x: 150, y: 65, w: 40, h: 40 },
-        { x: 410, y: 65, w: 40, h: 40 },
-        { x: 470, y: 65, w: 40, h: 40 },
+        { x: 90, y: 65, w: 60, h: 30 },
+        { x: 90, y: 65, w: 30, h: 70 },
+        { x: 150, y: 105, w: 30, h: 50 },
 
-        { x: 250, y: 120, w: 40, h: 40 },
-        { x: 310, y: 120, w: 40, h: 40 },
+        { x: 420, y: 65, w: 90, h: 30 },
+        { x: 480, y: 65, w: 30, h: 70 },
+        { x: 420, y: 125, w: 30, h: 40 },
 
-        { x: 90, y: 190, w: 40, h: 40 },
-        { x: 470, y: 190, w: 40, h: 40 },
+        { x: 230, y: 90, w: 50, h: 30 },
+        { x: 320, y: 90, w: 50, h: 30 },
 
-        { x: 190, y: 250, w: 40, h: 40 },
-        { x: 370, y: 250, w: 40, h: 40 },
+        { x: 70, y: 210, w: 30, h: 70 },
+        { x: 100, y: 250, w: 50, h: 30 },
+        { x: 500, y: 210, w: 30, h: 70 },
+        { x: 450, y: 250, w: 50, h: 30 },
 
-        { x: 270, y: 310, w: 40, h: 40 }
+        { x: 220, y: 190, w: 50, h: 30 },
+        { x: 330, y: 190, w: 50, h: 30 },
+        { x: 280, y: 250, w: 40, h: 30 },
+
+        { x: 130, y: 315, w: 60, h: 25 },
+        { x: 410, y: 315, w: 60, h: 25 }
     ];
 }
 
 function createPlayer() {
     return {
         x: 286,
-        y: 350,
+        y: 355,
         size: TANK_SIZE,
-        speed: 1.8,
+        speed: 2,
         direction: "up",
         color: "#65d65e",
         shootCooldown: 0,
-        invulnerable: 0
+        invulnerable: 0,
+        hp: 1,
+        type: "player"
     };
 }
 
 // ============================================
-// START AND RESTART
+// GAME START AND RESTART
 // ============================================
 
 function resetGame() {
@@ -102,25 +106,24 @@ function resetGame() {
     lives = STARTING_LIVES;
 
     enemies = [];
+    allies = [];
     bullets = [];
-    boss = null;
-    powerup = null;
+    powerups = [];
 
     enemySpawnTimer = 0;
     powerupTimer = 0;
-    bossWarningShown = false;
+    nextPowerupType = "life";
     keys = {};
 
     createWorld();
     player = createPlayer();
 
-    spawnEnemy(30, 25);
-    spawnEnemy(270, 25);
-    spawnEnemy(530, 25);
+    spawnEnemy(25, 20);
+    spawnEnemy(285, 20);
+    spawnEnemy(545, 20);
 
     state = "playing";
     screen.classList.add("hidden");
-
     updateHUD();
 }
 
@@ -131,73 +134,21 @@ function showScreen(title, message, buttonText) {
     screen.classList.remove("hidden");
 }
 
-function endGame(won) {
-    if (state === "won" || state === "lost") {
-        return;
-    }
+function endGame() {
+    if (state !== "playing") return;
 
-    state = won ? "won" : "lost";
+    state = "lost";
     keys = {};
 
-    if (won) {
-        showScreen(
-            "YOU WIN!",
-            "You defeated the Boss! Final score: " + score,
-            "PLAY AGAIN"
-        );
-    } else {
-        showScreen(
-            "GAME OVER",
-            "You have lost all your lives. Final score: " + score,
-            "TRY AGAIN"
-        );
-    }
-}
-
-function startBossFight() {
-    boss = {
-        x: WIDTH / 2 - 30,
-        y: 35,
-        size: 60,
-        speed: 0.7,
-        direction: "down",
-        color: "#a53dca",
-        hp: BOSS_MAX_HEALTH,
-        shootCooldown: 800
-    };
-
-    enemies = [];
-    bullets = [];
-    powerup = null;
-
-    state = "playing";
-    screen.classList.add("hidden");
-
-    updateHUD();
-}
-
-function checkBossThreshold() {
-    if (
-        score >= BOSS_SCORE &&
-        boss === null &&
-        !bossWarningShown
-    ) {
-        bossWarningShown = true;
-        enemies = [];
-        bullets = [];
-        powerup = null;
-        state = "boss-warning";
-
-        showScreen(
-            "THE BOSS IS HERE!",
-            "You reached 1000 points! Prepare for the final battle.",
-            "FIGHT BOSS"
-        );
-    }
+    showScreen(
+        "GAME OVER",
+        "Final score: " + score + " points!",
+        "PLAY AGAIN"
+    );
 }
 
 // ============================================
-// COLLISION DETECTION
+// COLLISION
 // ============================================
 
 function overlaps(a, b) {
@@ -230,23 +181,15 @@ function canMove(tank, newX, newY) {
         return false;
     }
 
-    for (const wall of walls) {
-        if (overlaps(test, wall)) {
-            return false;
-        }
-    }
-
-    if (tank !== player && player && overlaps(test, player)) {
+    if (walls.some(wall => overlaps(test, wall))) {
         return false;
     }
 
-    for (const enemy of enemies) {
-        if (enemy !== tank && overlaps(test, enemy)) {
-            return false;
-        }
-    }
+    const otherTanks = [player, ...enemies, ...allies].filter(
+        other => other && other !== tank
+    );
 
-    if (boss && boss !== tank && overlaps(test, boss)) {
+    if (otherTanks.some(other => overlaps(test, other))) {
         return false;
     }
 
@@ -254,20 +197,25 @@ function canMove(tank, newX, newY) {
 }
 
 // ============================================
-// ENEMY TANKS
+// ENEMY TANKS - MAXIMUM 5
 // ============================================
 
 function spawnEnemy(x, y) {
+    if (enemies.length >= MAX_ENEMIES) return;
+
+    const difficulty = Math.min(score / 1500, 1);
+
     const enemy = {
-        x: x,
-        y: y,
+        x,
+        y,
         size: TANK_SIZE,
-        speed: 0.75 + Math.random() * 0.2,
+        speed: 0.8 + Math.random() * 0.25 + difficulty * 0.65,
         direction: "down",
         color: "#e65b4f",
-        shootCooldown: 900 + Math.random() * 700,
-        turnTimer: 500 + Math.random() * 900,
-        hp: 1
+        shootCooldown: 700 + Math.random() * 900 - difficulty * 350,
+        turnTimer: 400 + Math.random() * 800,
+        hp: 1,
+        type: "enemy"
     };
 
     if (canMove(enemy, x, y)) {
@@ -275,17 +223,15 @@ function spawnEnemy(x, y) {
     }
 }
 
-function chooseDirectionToPlayer(tank) {
-    const playerX = player.x + player.size / 2;
-    const playerY = player.y + player.size / 2;
-    const tankX = tank.x + tank.size / 2;
-    const tankY = tank.y + tank.size / 2;
+function chooseDirectionToTarget(tank, target) {
+    const dx = target.x - tank.x;
+    const dy = target.y - tank.y;
 
-    if (Math.abs(playerX - tankX) > Math.abs(playerY - tankY)) {
-        return playerX < tankX ? "left" : "right";
+    if (Math.abs(dx) > Math.abs(dy)) {
+        return dx < 0 ? "left" : "right";
     }
 
-    return playerY < tankY ? "up" : "down";
+    return dy < 0 ? "up" : "down";
 }
 
 function moveEnemies(delta) {
@@ -295,28 +241,121 @@ function moveEnemies(delta) {
 
         if (enemy.turnTimer <= 0) {
             const options = ["up", "down", "left", "right"];
-            enemy.direction =
-                options[Math.floor(Math.random() * options.length)];
+            const difficulty = Math.min(score / 1500, 1);
 
-            enemy.turnTimer = 700 + Math.random() * 900;
+            // Musuh semakin bijak menghala kepada pemain.
+            if (Math.random() < 0.25 + difficulty * 0.65) {
+                enemy.direction = chooseDirectionToTarget(enemy, player);
+            } else {
+                enemy.direction =
+                    options[Math.floor(Math.random() * options.length)];
+            }
+
+            enemy.turnTimer =
+                700 - difficulty * 300 + Math.random() * 500;
         }
 
         const direction = directions[enemy.direction];
         const distance = enemy.speed * delta / 16.67;
 
-        const nextX = enemy.x + direction.x * distance;
-        const nextY = enemy.y + direction.y * distance;
+        const nx = enemy.x + direction.x * distance;
+        const ny = enemy.y + direction.y * distance;
 
-        if (canMove(enemy, nextX, nextY)) {
-            enemy.x = nextX;
-            enemy.y = nextY;
+        if (canMove(enemy, nx, ny)) {
+            enemy.x = nx;
+            enemy.y = ny;
         } else {
             enemy.turnTimer = 0;
         }
 
         if (enemy.shootCooldown <= 0) {
-            enemy.direction = chooseDirectionToPlayer(enemy);
+            enemy.direction = chooseDirectionToTarget(enemy, player);
             shoot(enemy, "enemy");
+        }
+    }
+}
+
+ // ============================================
+ // TEAM REINFORCEMENT
+ // ============================================
+
+function spawnAlly() {
+    if (allies.length >= MAX_ALLIES) return;
+
+    const positions = [
+        { x: 220, y: 350 },
+        { x: 350, y: 350 },
+        { x: 285, y: 300 },
+        { x: 220, y: 300 },
+        { x: 350, y: 300 }
+    ];
+
+    for (const pos of positions) {
+        const ally = {
+            x: pos.x,
+            y: pos.y,
+            size: TANK_SIZE,
+            speed: 1.25,
+            direction: "up",
+            color: "#55baff",
+            shootCooldown: 300,
+            hp: 3,
+            type: "ally",
+            targetTimer: 0
+        };
+
+        if (canMove(ally, ally.x, ally.y)) {
+            allies.push(ally);
+            return;
+        }
+    }
+}
+
+function moveAllies(delta) {
+    for (const ally of allies) {
+        ally.shootCooldown -= delta;
+        ally.targetTimer -= delta;
+
+        if (enemies.length === 0) continue;
+
+        const target = enemies.reduce((closest, enemy) => {
+            const distance = Math.hypot(
+                enemy.x - ally.x,
+                enemy.y - ally.y
+            );
+
+            if (!closest || distance < closest.distance) {
+                return { enemy, distance };
+            }
+
+            return closest;
+        }, null);
+
+        if (!target) continue;
+
+        const enemy = target.enemy;
+
+        if (ally.targetTimer <= 0) {
+            ally.direction = chooseDirectionToTarget(ally, enemy);
+            ally.targetTimer = 500;
+        }
+
+        const dir = directions[ally.direction];
+        const distance = ally.speed * delta / 16.67;
+
+        const nx = ally.x + dir.x * distance;
+        const ny = ally.y + dir.y * distance;
+
+        if (canMove(ally, nx, ny)) {
+            ally.x = nx;
+            ally.y = ny;
+        } else {
+            ally.targetTimer = 0;
+        }
+
+        if (ally.shootCooldown <= 0) {
+            ally.direction = chooseDirectionToTarget(ally, enemy);
+            shoot(ally, "ally");
         }
     }
 }
@@ -353,11 +392,11 @@ function movePlayer(delta) {
 
     const distance = player.speed * delta / 16.67;
 
-    if (dx !== 0 && canMove(player, player.x + dx * distance, player.y)) {
+    if (dx && canMove(player, player.x + dx * distance, player.y)) {
         player.x += dx * distance;
     }
 
-    if (dy !== 0 && canMove(player, player.x, player.y + dy * distance)) {
+    if (dy && canMove(player, player.x, player.y + dy * distance)) {
         player.y += dy * distance;
     }
 
@@ -367,26 +406,21 @@ function movePlayer(delta) {
 }
 
 // ============================================
-// SHOOTING
+// BULLETS
 // ============================================
 
 function shoot(tank, owner) {
-    if (tank.shootCooldown > 0) {
-        return;
-    }
+    if (tank.shootCooldown > 0) return;
 
-    if (owner === "player") {
-        tank.shootCooldown = 300;
-    } else if (owner === "boss") {
-        tank.shootCooldown = 1100;
-    } else {
-        tank.shootCooldown = 1500;
-    }
+    const difficulty = Math.min(score / 1500, 1);
+
+    tank.shootCooldown = owner === "player" ? 300 :
+        owner === "ally" ? 550 : 1300 - difficulty * 500;
 
     const direction = directions[tank.direction];
-    const bulletSize = owner === "boss" ? 9 : 6;
-    const bulletSpeed = owner === "player" ? 5 : 3;
+    const bulletSize = 6;
     const center = tank.size / 2;
+    const bulletSpeed = owner === "enemy" ? 2.8 : 4.5;
 
     bullets.push({
         x: tank.x + center - bulletSize / 2 +
@@ -397,7 +431,7 @@ function shoot(tank, owner) {
         h: bulletSize,
         vx: direction.x * bulletSpeed,
         vy: direction.y * bulletSpeed,
-        owner: owner,
+        owner,
         hit: false
     });
 }
@@ -410,8 +444,7 @@ function moveBullets(delta) {
 
     bullets = bullets.filter(bullet => {
         if (
-            bullet.x < 0 ||
-            bullet.y < 0 ||
+            bullet.x < 0 || bullet.y < 0 ||
             bullet.x + bullet.w > WIDTH ||
             bullet.y + bullet.h > HEIGHT
         ) {
@@ -423,138 +456,85 @@ function moveBullets(delta) {
 }
 
 // ============================================
-// RANDOM EXTRA-LIFE POWER-UP
+// RANDOM POWER-UPS
 // ============================================
 
 function spawnPowerup() {
-    if (powerup || lives >= MAX_LIVES || boss) {
-        return;
-    }
+    if (powerups.length >= 1) return;
 
-    for (let attempt = 0; attempt < 80; attempt++) {
-        const x = 20 + Math.random() * (WIDTH - POWERUP_SIZE - 40);
-        const y = 20 + Math.random() * (HEIGHT - POWERUP_SIZE - 40);
+    const type = nextPowerupType;
+    nextPowerupType = type === "life" ? "team" : "life";
 
-        const candidate = {
-            x: x,
-            y: y,
-            size: POWERUP_SIZE
+    for (let i = 0; i < 100; i++) {
+        const powerup = {
+            x: 20 + Math.random() * (WIDTH - 44),
+            y: 20 + Math.random() * (HEIGHT - 44),
+            size: 24,
+            type
         };
 
-        const blockedByWall = walls.some(wall =>
-            overlaps(candidate, wall)
-        );
+        const blocked =
+            walls.some(wall => overlaps(powerup, wall)) ||
+            [player, ...enemies, ...allies].some(
+                tank => tank && overlaps(powerup, tank)
+            );
 
-        const blockedByPlayer = player && overlaps(candidate, player);
-        const blockedByEnemy = enemies.some(enemy =>
-            overlaps(candidate, enemy)
-        );
-
-        if (!blockedByWall && !blockedByPlayer && !blockedByEnemy) {
-            powerup = candidate;
+        if (!blocked) {
+            powerups.push(powerup);
             return;
         }
     }
 }
 
-function updatePowerup(delta) {
-    if (lives >= MAX_LIVES || boss) {
-        powerup = null;
+function updatePowerups(delta) {
+    powerupTimer += delta;
+
+    if (powerupTimer >= POWERUP_INTERVAL) {
         powerupTimer = 0;
-        return;
+        spawnPowerup();
     }
 
-    if (!powerup) {
-        powerupTimer += delta;
+    for (const powerup of powerups) {
+        if (!overlaps(player, powerup)) continue;
 
-        if (powerupTimer >= POWERUP_INTERVAL) {
-            powerupTimer = 0;
-            spawnPowerup();
+        if (powerup.type === "life") {
+            if (lives < MAX_LIVES) {
+                lives++;
+            }
+        } else if (powerup.type === "team") {
+            spawnAlly();
         }
+
+        powerup.collected = true;
+        updateHUD();
     }
 
-    if (powerup && overlaps(player, powerup)) {
-        if (lives < MAX_LIVES) {
-            lives++;
-            powerup = null;
-            powerupTimer = 0;
-            updateHUD();
+    powerups = powerups.filter(powerup => !powerup.collected);
+}
+
+function drawPowerups() {
+    for (const powerup of powerups) {
+        const cx = powerup.x + powerup.size / 2;
+        const cy = powerup.y + powerup.size / 2;
+
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "22px Arial";
+
+        if (powerup.type === "life") {
+            ctx.fillText("❤️", cx, cy);
+        } else {
+            ctx.fillText("🟢", cx, cy);
         }
+
+        ctx.restore();
     }
 }
 
-function drawPowerup() {
-    if (!powerup) {
-        return;
-    }
-
-    const cx = powerup.x + powerup.size / 2;
-    const cy = powerup.y + powerup.size / 2;
-
-    ctx.save();
-    ctx.fillStyle = "#ff3b5c";
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1.5;
-
-    // Draw a heart shape.
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + 8);
-    ctx.bezierCurveTo(
-        cx - 14, cy - 1,
-        cx - 10, cy - 11,
-        cx - 3, cy - 7
-    );
-    ctx.bezierCurveTo(
-        cx, cy - 5,
-        cx, cy - 3,
-        cx, cy - 3
-    );
-    ctx.bezierCurveTo(
-        cx + 5, cy - 13,
-        cx + 14, cy - 5,
-        cx + 10, cy + 1
-    );
-    ctx.lineTo(cx, cy + 8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.restore();
-}
-
-// ============================================
-// BOSS
-// ============================================
-
-function moveBoss(delta) {
-    if (!boss) {
-        return;
-    }
-
-    boss.shootCooldown -= delta;
-
-    const direction = directions[boss.direction];
-    const distance = boss.speed * delta / 16.67;
-
-    const nextX = boss.x + direction.x * distance;
-    const nextY = boss.y + direction.y * distance;
-
-    if (canMove(boss, nextX, nextY)) {
-        boss.x = nextX;
-        boss.y = nextY;
-    } else {
-        boss.direction = chooseDirectionToPlayer(boss);
-    }
-
-    if (boss.shootCooldown <= 0) {
-        boss.direction = chooseDirectionToPlayer(boss);
-        shoot(boss, "boss");
-    }
-}
-
-// ============================================
-// DAMAGE AND COLLISIONS
-// ============================================
+ // ============================================
+ // DAMAGE AND COLLISIONS
+ // ============================================
 
 function loseLife() {
     if (state !== "playing" || player.invulnerable > 0) {
@@ -563,31 +543,25 @@ function loseLife() {
 
     lives--;
 
-    // The player tank does NOT respawn.
-    // It stays at the position where it was hit.
+    // Player stays at the position where hit.
     if (lives <= 0) {
         lives = 0;
         updateHUD();
-        endGame(false);
+        endGame();
         return;
     }
 
-    // Brief protection to prevent repeated instant damage.
     player.invulnerable = 1500;
-
-    // Remove enemy bullets after the player is hit.
-    bullets = bullets.filter(bullet => bullet.owner === "player");
+    bullets = bullets.filter(bullet => bullet.owner !== "enemy");
 
     updateHUD();
 }
 
 function checkCollisions() {
     for (const bullet of bullets) {
-        if (bullet.hit) {
-            continue;
-        }
+        if (bullet.hit) continue;
 
-        if (bullet.owner === "player") {
+        if (bullet.owner === "player" || bullet.owner === "ally") {
             for (const enemy of enemies) {
                 if (overlaps(bullet, enemy)) {
                     enemy.hp = 0;
@@ -595,27 +569,25 @@ function checkCollisions() {
                     break;
                 }
             }
-
-            if (!bullet.hit && boss && overlaps(bullet, boss)) {
-                boss.hp--;
-                bullet.hit = true;
-
-                if (boss.hp <= 0) {
-                    boss.hp = 0;
-                    updateHUD();
-                    endGame(true);
-                    return;
+        } else if (bullet.owner === "enemy") {
+            for (const ally of allies) {
+                if (overlaps(bullet, ally)) {
+                    // Team tanks lose one life per hit.
+                    ally.hp--;
+                    bullet.hit = true;
+                    break;
                 }
             }
-        } else if (
-            player.invulnerable <= 0 &&
-            overlaps(bullet, player)
-        ) {
-            bullet.hit = true;
-            loseLife();
 
-            if (state !== "playing") {
-                return;
+            if (
+                !bullet.hit &&
+                player.invulnerable <= 0 &&
+                overlaps(bullet, player)
+            ) {
+                bullet.hit = true;
+                loseLife();
+
+                if (state !== "playing") return;
             }
         }
     }
@@ -624,18 +596,12 @@ function checkCollisions() {
 
     const defeated = enemies.filter(enemy => enemy.hp <= 0);
 
-    if (defeated.length > 0) {
-        // Each defeated enemy gives 100 points.
+    if (defeated.length) {
         score += defeated.length * 100;
-
         enemies = enemies.filter(enemy => enemy.hp > 0);
-
-        checkBossThreshold();
-
-        if (state !== "playing") {
-            return;
-        }
     }
+
+    allies = allies.filter(ally => ally.hp > 0);
 
     for (const enemy of enemies) {
         if (
@@ -644,34 +610,23 @@ function checkCollisions() {
         ) {
             loseLife();
 
-            if (state !== "playing") {
-                return;
-            }
-
+            if (state !== "playing") return;
             break;
         }
     }
 
-    if (powerup && overlaps(player, powerup)) {
-        if (lives < MAX_LIVES) {
-            lives++;
-            powerup = null;
-            powerupTimer = 0;
-            updateHUD();
-        }
-    }
+    updatePowerups(0);
 }
 
 // ============================================
-// DRAW THE BATTLEFIELD
+// DRAW WORLD AND WALLS
 // ============================================
 
 function drawWorld() {
     ctx.fillStyle = "#354c36";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // Ground pattern. No grass or camouflage.
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
     ctx.lineWidth = 1;
 
     for (let x = 0; x < WIDTH; x += 40) {
@@ -692,33 +647,36 @@ function drawWorld() {
 }
 
 function drawWall(wall) {
-    ctx.fillStyle = "#9b6544";
+    ctx.fillStyle = "#8b6042";
     ctx.fillRect(wall.x, wall.y, wall.w, wall.h);
 
-    ctx.strokeStyle = "#4f3023";
+    ctx.strokeStyle = "#34261d";
     ctx.lineWidth = 2;
     ctx.strokeRect(wall.x, wall.y, wall.w, wall.h);
 
-    ctx.strokeStyle = "#5e3928";
-    ctx.beginPath();
+    // Original brick pattern.
+    ctx.strokeStyle = "#c18a5f";
+    ctx.lineWidth = 1;
 
-    ctx.moveTo(wall.x, wall.y + wall.h / 2);
-    ctx.lineTo(wall.x + wall.w, wall.y + wall.h / 2);
-
-    ctx.moveTo(wall.x + wall.w / 2, wall.y);
-    ctx.lineTo(wall.x + wall.w / 2, wall.y + wall.h / 2);
-
-    ctx.moveTo(wall.x + wall.w / 4, wall.y + wall.h / 2);
-    ctx.lineTo(wall.x + wall.w / 4, wall.y + wall.h);
-
-    ctx.moveTo(wall.x + wall.w * 3 / 4, wall.y + wall.h / 2);
-    ctx.lineTo(wall.x + wall.w * 3 / 4, wall.y + wall.h);
-
-    ctx.stroke();
+    if (wall.w > wall.h) {
+        for (let x = wall.x + 20; x < wall.x + wall.w; x += 20) {
+            ctx.beginPath();
+            ctx.moveTo(x, wall.y);
+            ctx.lineTo(x, wall.y + wall.h);
+            ctx.stroke();
+        }
+    } else {
+        for (let y = wall.y + 20; y < wall.y + wall.h; y += 20) {
+            ctx.beginPath();
+            ctx.moveTo(wall.x, y);
+            ctx.lineTo(wall.x + wall.w, y);
+            ctx.stroke();
+        }
+    }
 }
 
 // ============================================
-// TANK GRAPHICS
+// TANK GRAPHICS - ORIGINAL DESIGN
 // ============================================
 
 function drawTank(tank) {
@@ -733,11 +691,7 @@ function drawTank(tank) {
     }
 
     ctx.save();
-
-    ctx.translate(
-        tank.x + size / 2,
-        tank.y + size / 2
-    );
+    ctx.translate(tank.x + size / 2, tank.y + size / 2);
 
     const angles = {
         up: 0,
@@ -748,87 +702,39 @@ function drawTank(tank) {
 
     ctx.rotate(angles[tank.direction]);
 
-    // Tank tracks.
+    // Tracks
     ctx.fillStyle = "#151b16";
-    ctx.fillRect(
-        -size * 0.49,
-        -size * 0.46,
-        size * 0.98,
-        size * 0.92
-    );
+    ctx.fillRect(-size * 0.49, -size * 0.46,
+        size * 0.98, size * 0.92);
 
     ctx.fillStyle = "#69766a";
 
     for (let i = 0; i < 4; i++) {
-        const trackY = -size * 0.36 + i * size * 0.23;
-
-        ctx.fillRect(
-            -size * 0.45,
-            trackY,
-            size * 0.10,
-            size * 0.10
-        );
-
-        ctx.fillRect(
-            size * 0.35,
-            trackY,
-            size * 0.10,
-            size * 0.10
-        );
+        const ty = -size * 0.36 + i * size * 0.23;
+        ctx.fillRect(-size * 0.45, ty, size * 0.10, size * 0.10);
+        ctx.fillRect(size * 0.35, ty, size * 0.10, size * 0.10);
     }
 
-    // Armour.
+    // Armour
     ctx.fillStyle = tank.color;
-    ctx.fillRect(
-        -size * 0.32,
-        -size * 0.39,
-        size * 0.64,
-        size * 0.78
-    );
-
-    ctx.fillStyle = "rgba(0,0,0,0.22)";
-    ctx.fillRect(
-        -size * 0.27,
-        size * 0.16,
-        size * 0.54,
-        size * 0.16
-    );
+    ctx.fillRect(-size * 0.32, -size * 0.39,
+        size * 0.64, size * 0.78);
 
     ctx.fillStyle = "rgba(255,255,255,0.20)";
-    ctx.fillRect(
-        -size * 0.25,
-        -size * 0.32,
-        size * 0.50,
-        size * 0.08
-    );
+    ctx.fillRect(-size * 0.25, -size * 0.32,
+        size * 0.50, size * 0.08);
 
-    // Turret base.
+    // Turret base
     ctx.fillStyle = "#263127";
-    ctx.fillRect(
-        -size * 0.20,
-        -size * 0.20,
-        size * 0.40,
-        size * 0.40
-    );
+    ctx.fillRect(-size * 0.20, -size * 0.20,
+        size * 0.40, size * 0.40);
 
-    // Cannon.
+    // Cannon
     ctx.fillStyle = "#202720";
-    ctx.fillRect(
-        -size * 0.095,
-        -size * 0.60,
-        size * 0.19,
-        size * 0.47
-    );
+    ctx.fillRect(-size * 0.095, -size * 0.60,
+        size * 0.19, size * 0.47);
 
-    ctx.fillStyle = "#a6b2a1";
-    ctx.fillRect(
-        -size * 0.045,
-        -size * 0.57,
-        size * 0.045,
-        size * 0.36
-    );
-
-    // Turret.
+    // Turret
     ctx.fillStyle = tank.color;
     ctx.beginPath();
     ctx.arc(0, 0, size * 0.22, 0, Math.PI * 2);
@@ -843,60 +749,35 @@ function drawTank(tank) {
     ctx.arc(0, 0, size * 0.075, 0, Math.PI * 2);
     ctx.fill();
 
-    // Boss armour.
-    if (tank === boss) {
-        ctx.strokeStyle = "#f4c8ff";
-        ctx.lineWidth = 2;
-        ctx.strokeRect(
-            -size * 0.38,
-            -size * 0.40,
-            size * 0.76,
-            size * 0.80
+    ctx.restore();
+}
+
+// Display remaining hearts above friendly tanks.
+function drawAllyLives() {
+    ctx.save();
+    ctx.font = "12px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ff5b73";
+
+    for (const ally of allies) {
+        ctx.fillText(
+            "♥".repeat(Math.max(0, ally.hp)),
+            ally.x + ally.size / 2,
+            ally.y - 5
         );
     }
 
     ctx.restore();
 }
 
-function drawBoss() {
-    if (!boss) {
-        return;
-    }
-
-    drawTank(boss);
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 12px Arial";
-    ctx.textAlign = "center";
-
-    ctx.fillText(
-        "BOSS",
-        boss.x + boss.size / 2,
-        boss.y - 7
-    );
-}
-
 function drawBullets() {
     for (const bullet of bullets) {
         ctx.fillStyle =
-            bullet.owner === "player" ? "#fff176" : "#ff7777";
+            bullet.owner === "enemy" ? "#ff7777" :
+            bullet.owner === "ally" ? "#78d8ff" : "#fff176";
 
-        ctx.fillRect(
-            bullet.x,
-            bullet.y,
-            bullet.w,
-            bullet.h
-        );
-
-        if (bullet.owner === "player") {
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(
-                bullet.x + bullet.w * 0.3,
-                bullet.y + bullet.h * 0.3,
-                bullet.w * 0.4,
-                bullet.h * 0.4
-            );
-        }
+        ctx.fillRect(bullet.x, bullet.y, bullet.w, bullet.h);
     }
 }
 
@@ -909,17 +790,8 @@ function updateHUD() {
     livesText.textContent = lives;
     enemyCountText.textContent = enemies.length;
 
-    if (boss) {
-        bossPanel.hidden = false;
-
-        bossHealthText.textContent =
-            Math.max(0, boss.hp) + " / " + BOSS_MAX_HEALTH;
-
-        bossHealthFill.style.width =
-            (Math.max(0, boss.hp) / BOSS_MAX_HEALTH * 100) + "%";
-    } else {
-        bossPanel.hidden = true;
-    }
+    const bossPanel = document.getElementById("boss-panel");
+    if (bossPanel) bossPanel.hidden = true;
 }
 
 // ============================================
@@ -933,66 +805,68 @@ function gameLoop(time = 0) {
     if (state === "playing") {
         movePlayer(delta);
         moveEnemies(delta);
-        moveBoss(delta);
+        moveAllies(delta);
         moveBullets(delta);
-        updatePowerup(delta);
+        updatePowerups(delta);
         checkCollisions();
 
-        if (state === "playing" && !boss) {
+        // Endless enemies, maximum five at a time.
+        if (state === "playing") {
             enemySpawnTimer += delta;
 
-            if (enemySpawnTimer >= 1800 && enemies.length < 4) {
+            const spawnDelay = Math.max(
+                650,
+                1800 - Math.floor(score / 500) * 100
+            );
+
+            if (
+                enemySpawnTimer >= spawnDelay &&
+                enemies.length < MAX_ENEMIES
+            ) {
                 enemySpawnTimer = 0;
 
                 const positions = [
-                    [30, 25],
-                    [270, 25],
-                    [530, 25]
+                    [20, 20],
+                    [285, 20],
+                    [550, 20],
+                    [20, 180],
+                    [550, 180]
                 ];
 
-                for (const position of positions) {
-                    if (enemies.length >= 4) {
-                        break;
-                    }
+                for (let i = 0; i < positions.length; i++) {
+                    const pos = positions[
+                        Math.floor(Math.random() * positions.length)
+                    ];
 
-                    const previousCount = enemies.length;
+                    const before = enemies.length;
+                    spawnEnemy(pos[0], pos[1]);
 
-                    spawnEnemy(position[0], position[1]);
-
-                    if (enemies.length > previousCount) {
-                        break;
-                    }
+                    if (enemies.length > before) break;
                 }
             }
         }
     }
 
     drawWorld();
-    drawPowerup();
+    drawPowerups();
     drawBullets();
 
     enemies.forEach(drawTank);
+    allies.forEach(drawTank);
+    drawAllyLives();
 
-    if (player) {
-        drawTank(player);
-    }
+    if (player) drawTank(player);
 
-    drawBoss();
     updateHUD();
-
     requestAnimationFrame(gameLoop);
 }
 
 // ============================================
-// START AND RESTART BUTTON
+// START / RESTART
 // ============================================
 
 screenButton.addEventListener("click", function () {
-    if (state === "boss-warning") {
-        startBossFight();
-    } else {
-        resetGame();
-    }
+    resetGame();
 });
 
 // ============================================
@@ -1031,7 +905,7 @@ window.addEventListener("blur", function () {
 });
 
 // ============================================
-// MOBILE DIRECTION BUTTONS
+// MOBILE MOVE BUTTONS
 // ============================================
 
 document.querySelectorAll("[data-key]").forEach(function (button) {
@@ -1089,7 +963,7 @@ player = createPlayer();
 
 showScreen(
     "TANK BATTLE 1990",
-    "Defeat enemies, reach 1000 points and fight the Boss!",
+    "Defeat endless enemies, collect power-ups and survive!",
     "START GAME"
 );
 
