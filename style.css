@@ -181,7 +181,7 @@ main {
 }
 
 /* ==========================================
-   BUTTON STYLES
+   GENERAL BUTTON STYLES
    ========================================== */
 
 button {
@@ -221,7 +221,7 @@ button:focus-visible {
 
 /* ==========================================
    MOBILE CONTROLS
-   MOVE LEFT - FIRE RIGHT
+   FIRE LEFT - MOVE RIGHT
    ========================================== */
 
 .mobile-controls {
@@ -236,7 +236,43 @@ button:focus-visible {
     padding: 0 4px;
 }
 
+/* FIRE BUTTON ON THE LEFT */
+
+#fire-button {
+    order: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    width: 94px;
+    min-width: 76px;
+    height: 76px;
+    min-height: 64px;
+    padding: 8px;
+    border: 3px solid #ffaaaa;
+    border-radius: 50%;
+    background: #e85d5d;
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 0 #8f3030;
+}
+
+#fire-button:hover {
+    background: #f06d6d;
+}
+
+#fire-button:active {
+    background: #c94141;
+    box-shadow: 0 1px 0 #8f3030;
+    transform: translateY(3px) scale(0.96);
+}
+
+/* MOVE CONTROLS ON THE RIGHT */
+
 .movement-controls {
+    order: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -277,36 +313,6 @@ button:focus-visible {
     display: flex;
     justify-content: center;
     gap: 6px;
-}
-
-#fire-button {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-shrink: 0;
-    width: 94px;
-    min-width: 76px;
-    height: 76px;
-    min-height: 64px;
-    padding: 8px;
-    border: 3px solid #ffaaaa;
-    border-radius: 50%;
-    background: #e85d5d;
-    color: #ffffff;
-    font-size: 17px;
-    font-weight: 900;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 0 #8f3030;
-}
-
-#fire-button:hover {
-    background: #f06d6d;
-}
-
-#fire-button:active {
-    background: #c94141;
-    box-shadow: 0 1px 0 #8f3030;
-    transform: translateY(3px) scale(0.96);
 }
 
 /* ==========================================
@@ -422,6 +428,10 @@ button:focus-visible {
    ========================================== */
 
 @media (max-width: 350px) {
+    .mobile-controls {
+        gap: 5px;
+    }
+
     .mobile-controls .move-button {
         width: 40px;
         min-width: 38px;
