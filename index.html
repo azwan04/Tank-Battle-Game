@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#18251b">
     <title>Tank Battle 1990</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -14,7 +15,7 @@
     </header>
 
     <main>
-        <section class="hud">
+        <section class="hud" aria-label="Game status">
             <div>Score: <span id="score">0</span></div>
             <div>Lives: <span id="lives">3</span></div>
             <div>Enemies: <span id="enemy-count">3</span></div>
@@ -37,15 +38,17 @@
 
             <div id="screen" class="screen">
                 <h2 id="screen-title">TANK BATTLE 1990</h2>
+
                 <p id="screen-message">
                     Defeat enemies, reach 1000 points and fight the Boss!
                 </p>
 
                 <div class="instructions">
                     <p><b>Move:</b> Arrow Keys or W, A, S, D</p>
-                    <p><b>Shoot:</b> Hold SPACEBAR</p>
+                    <p><b>Shoot:</b> Hold SPACEBAR or FIRE</p>
                     <p><b>Goal:</b> Defeat the Boss to win.</p>
                     <p>Walls cannot be destroyed.</p>
+                    <p>Collect hearts to gain extra lives.</p>
                 </div>
 
                 <button id="screen-button" type="button">
@@ -54,16 +57,39 @@
             </div>
         </div>
 
-        <section class="mobile-controls">
-            <button type="button" data-key="arrowup">▲</button>
+        <section class="mobile-controls" aria-label="Mobile game controls">
+            <div class="movement-controls">
+                <button
+                    type="button"
+                    class="move-button move-up"
+                    data-key="arrowup"
+                    aria-label="Move up">▲</button>
 
-            <div class="direction-row">
-                <button type="button" data-key="arrowleft">◀</button>
-                <button type="button" data-key="arrowdown">▼</button>
-                <button type="button" data-key="arrowright">▶</button>
+                <div class="direction-row">
+                    <button
+                        type="button"
+                        class="move-button"
+                        data-key="arrowleft"
+                        aria-label="Move left">◀</button>
+
+                    <button
+                        type="button"
+                        class="move-button"
+                        data-key="arrowdown"
+                        aria-label="Move down">▼</button>
+
+                    <button
+                        type="button"
+                        class="move-button"
+                        data-key="arrowright"
+                        aria-label="Move right">▶</button>
+                </div>
             </div>
 
-            <button type="button" id="fire-button">FIRE</button>
+            <button
+                type="button"
+                id="fire-button"
+                aria-label="Fire weapon">FIRE</button>
         </section>
 
         <p class="hint">
