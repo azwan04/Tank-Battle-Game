@@ -1,6 +1,15 @@
 
+/* ==========================================
+   TANK BATTLE 1990
+   ========================================== */
+
 * {
     box-sizing: border-box;
+}
+
+html {
+    min-height: 100%;
+    background: #18251b;
 }
 
 body {
@@ -10,18 +19,23 @@ body {
     color: #ffffff;
     font-family: Arial, sans-serif;
     text-align: center;
+    -webkit-tap-highlight-color: transparent;
 }
 
 header h1 {
     color: #f5d76e;
     font-size: clamp(22px, 5vw, 34px);
     letter-spacing: 2px;
-    margin-bottom: 8px;
+    margin: 8px 0;
 }
 
 header p,
 .hint {
     color: #cbd5c0;
+}
+
+header p {
+    margin: 8px 0 16px;
 }
 
 main {
@@ -30,22 +44,36 @@ main {
     margin: auto;
 }
 
+/* ==========================================
+   SCORE, LIVES AND ENEMIES
+   ========================================== */
+
 .hud {
     display: flex;
     justify-content: space-around;
+    align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    margin: 20px 0 12px;
-    padding: 12px 5px;
+    margin: 16px 0 12px;
+    padding: 12px 8px;
     background: #263a29;
     border: 2px solid #71866b;
     border-radius: 8px;
+}
+
+.hud div {
+    font-size: 15px;
+    white-space: nowrap;
 }
 
 .hud span {
     color: #f5d76e;
     font-weight: bold;
 }
+
+/* ==========================================
+   BOSS HEALTH BAR
+   ========================================== */
 
 .boss-panel {
     margin: 12px 0;
@@ -56,7 +84,7 @@ main {
 }
 
 .boss-panel[hidden] {
-    display: none;
+    display: none !important;
 }
 
 .boss-heading {
@@ -84,14 +112,20 @@ main {
     transition: width 0.15s linear;
 }
 
+/* ==========================================
+   GAME CANVAS
+   ========================================== */
+
 .game-container {
     position: relative;
     width: 100%;
     max-width: 600px;
     margin: auto;
     overflow: hidden;
-    border: 5px solid #8b987d;
+    border: 4px solid #8b987d;
+    border-radius: 4px;
     background: #354c36;
+    line-height: 0;
 }
 
 #gameCanvas {
@@ -100,7 +134,12 @@ main {
     height: auto;
     background: #354c36;
     image-rendering: pixelated;
+    touch-action: none;
 }
+
+/* ==========================================
+   START, WIN AND GAME OVER SCREENS
+   ========================================== */
 
 .screen {
     position: absolute;
@@ -113,6 +152,7 @@ main {
     gap: 8px;
     padding: 15px;
     background: rgba(0, 0, 0, 0.92);
+    line-height: normal;
 }
 
 .screen.hidden {
@@ -136,17 +176,30 @@ main {
     font-size: 13px;
 }
 
+.instructions p {
+    line-height: 1.3;
+}
+
+/* ==========================================
+   BUTTON STYLES
+   ========================================== */
+
 button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
     padding: 12px 18px;
     border: 2px solid #f5d76e;
-    border-radius: 6px;
+    border-radius: 8px;
     background: #f5d76e;
     color: #18251b;
+    font-family: inherit;
     font-weight: bold;
     cursor: pointer;
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 button:hover {
@@ -154,7 +207,7 @@ button:hover {
 }
 
 button:active {
-    transform: scale(0.96);
+    transform: scale(0.95);
 }
 
 button:focus-visible {
@@ -162,48 +215,150 @@ button:focus-visible {
     outline-offset: 3px;
 }
 
+.screen button {
+    margin-top: 5px;
+}
+
+/* ==========================================
+   MOBILE CONTROLS
+   MOVE LEFT - FIRE RIGHT
+   ========================================== */
+
 .mobile-controls {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 600px;
+    margin: 15px auto 0;
+    padding: 0 4px;
+}
+
+.movement-controls {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    margin-top: 15px;
+    gap: 6px;
 }
 
-.mobile-controls button {
-    min-width: 58px;
-    min-height: 46px;
-    font-size: 18px;
+.mobile-controls .move-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 54px;
+    min-width: 44px;
+    height: 48px;
+    min-height: 42px;
+    padding: 6px;
+    border: 2px solid #9eae95;
+    border-radius: 10px;
+    background: #354c36;
+    color: #ffffff;
+    font-size: 21px;
+    font-weight: bold;
+}
+
+.mobile-controls .move-button:hover {
+    background: #486449;
+}
+
+.mobile-controls .move-button:active {
+    background: #607e5e;
+    transform: scale(0.94);
+}
+
+.move-up {
+    align-self: center;
 }
 
 .direction-row {
     display: flex;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
 }
 
 #fire-button {
-    min-width: 120px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    width: 94px;
+    min-width: 76px;
+    height: 76px;
+    min-height: 64px;
+    padding: 8px;
+    border: 3px solid #ffaaaa;
+    border-radius: 50%;
     background: #e85d5d;
-    border-color: #ffaaaa;
-    color: white;
+    color: #ffffff;
+    font-size: 17px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 0 #8f3030;
 }
 
-.hint {
-    font-size: 13px;
+#fire-button:hover {
+    background: #f06d6d;
 }
+
+#fire-button:active {
+    background: #c94141;
+    box-shadow: 0 1px 0 #8f3030;
+    transform: translateY(3px) scale(0.96);
+}
+
+/* ==========================================
+   HELP TEXT
+   ========================================== */
+
+.hint {
+    margin: 16px 0 8px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* ==========================================
+   SMALL SCREENS
+   ========================================== */
 
 @media (max-width: 500px) {
     body {
-        padding: 10px;
+        padding: 10px 8px;
+    }
+
+    header h1 {
+        font-size: 23px;
+        letter-spacing: 1px;
+    }
+
+    header p {
+        font-size: 13px;
     }
 
     .hud {
-        font-size: 13px;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 10px 5px;
+    }
+
+    .hud div {
+        font-size: 12px;
+    }
+
+    .game-container {
+        border-width: 3px;
     }
 
     .screen {
         gap: 5px;
         padding: 8px;
+    }
+
+    .screen h2 {
+        font-size: 20px;
+        margin-bottom: 4px;
     }
 
     .screen p {
@@ -212,15 +367,78 @@ button:focus-visible {
     }
 
     .instructions {
-        font-size: 11px;
+        font-size: 10px;
     }
 
     .instructions p {
-        line-height: 1.3;
+        line-height: 1.25;
     }
 
     .screen button {
         padding: 9px 12px;
+        font-size: 12px;
+    }
+
+    .mobile-controls {
+        gap: 8px;
+        margin-top: 12px;
+        padding: 0 2px;
+    }
+
+    .movement-controls {
+        gap: 5px;
+    }
+
+    .mobile-controls .move-button {
+        width: 46px;
+        min-width: 42px;
+        height: 43px;
+        min-height: 40px;
+        padding: 4px;
+        font-size: 18px;
+        border-radius: 8px;
+    }
+
+    .direction-row {
+        gap: 5px;
+    }
+
+    #fire-button {
+        width: 76px;
+        min-width: 70px;
+        height: 70px;
+        min-height: 60px;
+        font-size: 14px;
+    }
+
+    .hint {
+        font-size: 11px;
+        margin-top: 12px;
+    }
+}
+
+/* ==========================================
+   EXTRA SMALL PHONES
+   ========================================== */
+
+@media (max-width: 350px) {
+    .mobile-controls .move-button {
+        width: 40px;
+        min-width: 38px;
+        height: 40px;
+        min-height: 38px;
+        font-size: 16px;
+    }
+
+    .direction-row {
+        gap: 4px;
+    }
+
+    #fire-button {
+        width: 64px;
+        min-width: 60px;
+        height: 64px;
+        min-height: 56px;
         font-size: 12px;
     }
 }
